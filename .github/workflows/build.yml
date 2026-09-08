@@ -8,21 +8,18 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
       - name: Unzip project
+        run: unzip -o *.zip -d proj
+      - name: Locate project root
+        id: find
         run: |
-          unzip -o *.zip -d proj
-          echo "----- Extracted structure -----"
-          find proj -maxdepth 5
-      - name: Find and build
-        run: |
-          GRADLEW=$(find proj -maxdepth 6 -iname "gradlew" -type f | head -1)
-          echo "Found gradlew at: $GRADLEW"
-          if [ -z "$GRADLEW" ]; then
-            echo "No gradlew found anywhere. Full listing:"
-            find proj -maxdepth 8
-            exit 1
-          fi
-          ROOT=$(dirname "$GRADLEW")
-          cd "$ROOT" && chmod +x gradlew && ./gradlew assembleDebug
+          GRADLE_FILE=$(find proj -maxdepth 4 -path "*/app/build.gradle*" | head -1)
+          ROOT=$(dirname $(dirname "$GRADLE_FILE"))
+          echo "root=$ROOT" >> $GITHUB_OUTPUT
+          echo "Project root: $ROOT"
+          ls -la "$ROOT"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build Debug APK
+        run: gradle -p "${{ steps.find.outputs.root }}" assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
